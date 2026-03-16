@@ -92,8 +92,11 @@ class Xsection(AquiferData):
         return (x >= self.x1) and (x < self.x2)
 
     def create_elements(self):
+        if (self.x1 == -np.inf) and (self.x2 == np.inf):
+            # no reason to add elements, just return current aquifer
+            aqin = self.model.aq.find_aquifer_data(0, 0)
         # HeadDiff on right side, FluxDiff on left side
-        if self.x1 == -np.inf:
+        elif self.x1 == -np.inf:
             xin = self.x2 - self.tiny * abs(self.x2) - self.tiny
             xoutright = self.x2 + self.tiny * abs(self.x2) + self.tiny
             aqin = self.model.aq.find_aquifer_data(xin, 0)
@@ -135,6 +138,7 @@ class Xsection(AquiferData):
                     "Error: infiltration can only be added if topboundary='conf'"
                 )
                 XsectionAreaSinkInhom(self.model, self.x1, self.x2, self.N, layer=0)
+        
         if aqin.ltype[0] == "l":
             assert self.hstar is not None, "Error: hstar needs to be set"
             c = ConstantStar(self.model, self.hstar, aq=aqin)
