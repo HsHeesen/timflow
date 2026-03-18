@@ -774,10 +774,22 @@ class Model3D(Model):
 
 
 class ModelXsection(Model):
-    """Model for cross-section (2D vertical slice) problems.
+    r"""Model for cross-section (2D vertical slice) problems.
 
     A cross-section model represents flow in a vertical plane, typically used
     for analyzing flow patterns in aquifers along a transect.
+
+    Parameters
+    ----------
+    naq : int, optional
+        Number of aquifers in the model, by default 1. Each Xsection added
+        to this model must have the same number of aquifers.
+
+    Notes
+    -----
+    A `ModelXsection` may consist of an arbitrary number of `Xsection3D` or
+    `XsectionMaq` sections. The combined domain of all sections must span from $x =
+    -\infty$ to $x = +\infty$, with no gaps.
     """
 
     def __init__(self, naq=1):
@@ -791,13 +803,37 @@ class ModelXsection(Model):
         self.model_type = "steady"
 
     def check_inhoms(self):
-        """Check if number of aquifers in inhoms matches number of aquifers in model."""
+        """Check inhoms.
+
+        Checks that the number of aquifers in each inhomogeneity matches the number of
+        aquifers in the model, and whether the inhoms span from -inf to inf.
+        """
+        # check aquifers
         naqs = {}
         for inhom in self.aq.inhomlist:
             naqs[inhom.name] = inhom.naq
         check = np.array(list(naqs.values())) == self.aq.naq
         if not check.all():
             raise ValueError(f"Number of aquifers does not match {self.aq.naq}:\n{naqs}")
+        # check -inf to inf
+        xmin = min([inhom.x1 for inhom in self.aq.inhomlist])
+        xmax = max([inhom.x2 for inhom in self.aq.inhomlist])
+        if not (np.isinf(xmin) and np.sign(xmin) < 0):
+            raise ValueError(
+                f"XsectionModel boundary error: left-most boundary must be at x=-np.inf, "
+                f"got x={xmin}. "
+                f"(Model may consist of multiple Xsections, but their combined "
+                f"domain must span from -∞ to +∞)"
+            )
+
+        if not (np.isinf(xmax) and np.sign(xmax) > 0):
+            raise ValueError(
+                f"XsectionModel boundary error: right-most boundary must be at "
+                f"x=+np.inf, got x={xmax}. "
+                f"(Model may consist of multiple Xsections, but their combined "
+                f"domain must span from -∞ to +∞)"
+            )
+
         # # shared boundary check
         # # NOTE: does not deal with nested inhoms
         # xcoords = np.concatenate(
