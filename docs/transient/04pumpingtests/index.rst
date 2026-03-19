@@ -61,7 +61,7 @@ Slug Tests
 1. :doc:`Pratt County <slug1_pratt_county>` - Slug test with data from the partially penetrating test well.
 2. :doc:`Multi well <slug2_multiwell>` - Slug test with data from both fully penetrating test well and observation well.
 3. :doc:`Falling head <slug3_falling_head>` - Slug test in an unconfined aquifer with a partially penetrating well.
-4. :doc: `Dawsonville <slug4_dawsonville>` - Slug test in a confined aquifer with a fully penetrating well.
+4. :doc:`Dawsonville <slug4_dawsonville>` - Slug test in a confined aquifer with a fully penetrating well.
 
 Unconfined Pumping Tests
 ----------
