@@ -12,7 +12,7 @@ Example::
     cal.add_steady_head(name='obs2', x=0, y=0, layer=0, h=h_steady)
 
     # set calibration parameters
-    cal.set_parameter('kaq', layers=0, initial=10, pmin=1, pmax=100, model="both")
+    cal.set_aquifer_parameter('kaq', layers=0, initial=10, pmin=1, pmax=100, model="both")
 
     # calibrate model
     cal.fit()
@@ -28,10 +28,10 @@ import pandas as pd
 from scipy.linalg import LinAlgError, get_lapack_funcs, svd
 from scipy.optimize import least_squares
 
-from timflow.steady import Model as SteadyModel
-from timflow.steady import Model as TransientModel
 from timflow.steady.element import Element as SteadyElement
+from timflow.steady.model import Model as SteadyModel
 from timflow.transient.element import Element as TransientElement
+from timflow.transient.model import Model as TransientModel
 
 
 @dataclass
@@ -72,7 +72,7 @@ class Parameter:
     def set(self, value: float) -> None:
         """Push value to all model arrays this parameter controls."""
         if self.log_scale:
-            value = 10**value
+            value = np.sign(self.initial) * 10**value
         for target in self.targets:
             target.set(value)
 
@@ -403,7 +403,7 @@ class Calibrate:
                 param.add_target(arr, slc, model=ml, inhom=iaq)
 
         if log_scale:
-            param.set(np.log10(initial))  # initialise arrays immediately
+            param.set(np.log10(np.abs(initial)))  # initialise arrays immediately
         else:
             param.set(initial)  # initialise arrays immediately
         self._parameters[pname] = param
@@ -454,7 +454,7 @@ class Calibrate:
         )
         param.add_target(parameter, slice(None))
         if log_scale:
-            param.set(np.log10(initial))
+            param.set(np.log10(np.abs(initial)))
         else:
             param.set(initial)
         self._parameters[name] = param
@@ -483,6 +483,10 @@ class Calibrate:
 
             cal.add_steady_head("piezometer1", x=100.0, y=0.0, layer=0, h=1.5)
         """
+        if self.steady_model is None:
+            raise ValueError(
+                "Steady model must be provided to add steady head observations."
+            )
         self.observations_dict[name] = SteadyHead(
             x=x, y=y, layer=layer, h=h, weight=weight
         )
@@ -510,6 +514,10 @@ class Calibrate:
             pump_well = timflow.steady.Well(...)
             cal.add_steady_head_in_well("well1", well_element=pump_well, h=0.8)
         """
+        if self.steady_model is None:
+            raise ValueError(
+                "Steady model must be provided to add steady head observations."
+            )
         self.observations_in_well_dict[name] = SteadyHeadInWell(
             element=well_element,
             x=well_element.x,
@@ -534,19 +542,29 @@ class Calibrate:
         return tuple(arg)  # (initial, pmin, pmax)
 
     def _add_series_constant(
-        self, name: str, initial: float, pmin: float = -np.inf, pmax: float = np.inf
+        self,
+        name: str,
+        obs: Any,
+        initial: float,
+        pmin: float = -np.inf,
+        pmax: float = np.inf,
     ) -> None:
         constant = Parameter(name + "_constant", initial=initial, pmin=pmin, pmax=pmax)
-        constant.add_target(self.observations_dict[name]._constant, slice(None))
+        constant.add_target(obs._constant, slice(None))
         self._parameters[name + "_constant"] = constant
 
     def _add_series_time_shift(
-        self, name: str, initial: float, pmin: float = -np.inf, pmax: float = np.inf
+        self,
+        name: str,
+        obs: Any,
+        initial: float,
+        pmin: float = -np.inf,
+        pmax: float = np.inf,
     ) -> None:
         time_shift = Parameter(
             name + "_time_shift", initial=initial, pmin=pmin, pmax=pmax
         )
-        time_shift.add_target(self.observations_dict[name]._time_shift, slice(None))
+        time_shift.add_target(obs._time_shift, slice(None))
         self._parameters[name + "_time_shift"] = time_shift
 
     def add_head_time_series(
@@ -598,7 +616,9 @@ class Calibrate:
                 "obs1", x=50.0, y=0.0, layer=0, t=t, h=h, constant=(0.1, -1.0, 1.0)
             )
         """
-        self.observations_dict[name] = HeadSeries(
+        if self.transient_model is None:
+            raise ValueError("Transient model must be provided to add head time series.")
+        obs = HeadSeries(
             x=x,
             y=y,
             layer=layer,
@@ -608,16 +628,17 @@ class Calibrate:
             constant=constant,
             time_shift=time_shift,
         )
+        self.observations_dict[name] = obs
         if constant is not None:
             initial, pmin, pmax = self._parse_optional_param(
                 constant, default_initial=np.mean(h)
             )
-            self._add_series_constant(name, initial=initial, pmin=pmin, pmax=pmax)
+            self._add_series_constant(name, obs, initial=initial, pmin=pmin, pmax=pmax)
         if time_shift is not None:
             initial, pmin, pmax = self._parse_optional_param(
                 time_shift, default_initial=1 / 24.0
             )
-            self._add_series_time_shift(name, initial=initial, pmin=pmin, pmax=pmax)
+            self._add_series_time_shift(name, obs, initial=initial, pmin=pmin, pmax=pmax)
 
     def add_head_time_series_in_well(
         self,
@@ -656,23 +677,26 @@ class Calibrate:
             pump_well = timflow.transient.Well(...)
             cal.add_head_time_series_in_well("well1", well_element=pump_well, t=t, h=h)
         """
-        self.observations_in_well_dict[name] = HeadSeriesInWell(
+        if self.transient_model is None:
+            raise ValueError("Transient model must be provided to add head time series.")
+        obs = HeadSeriesInWell(
             element=well_element,
             t=t,
             h=h,
             constant=constant,
             time_shift=time_shift,
         )
+        self.observations_in_well_dict[name] = obs
         if constant is not None:
             initial, pmin, pmax = self._parse_optional_param(
                 constant, default_initial=np.mean(h)
             )
-            self._add_series_constant(name, initial=initial, pmin=pmin, pmax=pmax)
+            self._add_series_constant(name, obs, initial=initial, pmin=pmin, pmax=pmax)
         if time_shift is not None:
             initial, pmin, pmax = self._parse_optional_param(
                 time_shift, default_initial=1 / 24.0
             )
-            self._add_series_time_shift(name, initial=initial, pmin=pmin, pmax=pmax)
+            self._add_series_time_shift(name, obs, initial=initial, pmin=pmin, pmax=pmax)
 
     def residuals(self, p: np.ndarray, printdot: bool = False) -> np.ndarray:
         """Compute residuals for parameter vector ``p``.
@@ -700,9 +724,7 @@ class Calibrate:
         # 2. Solve whichever models are registered
         needs_steady = any(
             s.model_key == "steady" for s in self.observations_dict.values()
-        ) or any(
-            s.model_key == "steady" for s in self.observations_in_well_dict.values()
-        )
+        ) or any(s.model_key == "steady" for s in self.observations_in_well_dict.values())
         needs_transient = any(
             s.model_key == "transient" for s in self.observations_dict.values()
         ) or any(
@@ -753,23 +775,21 @@ class Calibrate:
                     # get closest observation to reference time
                     tref_idx = np.abs(obs.t - self.reference_time).argmin()
                     closest_ref_time = obs.t[tref_idx]
-                    htref = self.transient_model.head(
-                        obs.x, obs.y, closest_ref_time, layers=obs.layer
-                    ).squeeze()
+                    htref = obs.element.headinside(closest_ref_time)[0]
                     res = ((obs.h - obs.h[tref_idx]) - (h - htref) - c) * w
                 else:
                     res = (obs.h - h - c) * w
                 rv = np.append(rv, res)
-            elif obs.model_key == "steady":
-                h = obs.element.headinside()
-                w = obs.weight if obs.weight is not None else 1.0
-                rv = np.append(rv, np.atleast_1d((obs.h - h) * w))
                 # fix for nans, when tmin is larger than timestep after change in bc
                 # not ideal but better than crashing the optimizer. Warnings are already
                 # printed by the model when this happens.
                 nan_mask = np.isnan(rv)
                 if nan_mask.any():
                     rv[nan_mask] = np.interp(t[nan_mask], t[~nan_mask], rv[~nan_mask])
+            elif obs.model_key == "steady":
+                h = obs.element.headinside()
+                w = obs.weight if obs.weight is not None else 1.0
+                rv = np.append(rv, np.atleast_1d((obs.h - h) * w))
         return rv
 
     def residuals_lmfit(self, lmfitparams: Any, printdot: bool = False) -> np.ndarray:
@@ -826,11 +846,12 @@ class Calibrate:
         lmfitparams = lmfit.Parameters()
         for name, p in self._parameters.items():
             if p.log_scale:
+                lb, ub = self._log_scale_bounds(p.pmin, p.pmax, np.sign(p.initial))
                 lmfitparams.add(
                     name,
-                    value=np.log10(p.initial),
-                    min=np.log10(p.pmin) if p.pmin > 0 else 0.0,
-                    max=np.log10(p.pmax) if p.pmax > 0 else 0.0,
+                    value=np.log10(np.abs(p.initial)),
+                    min=lb if np.isfinite(lb) else None,
+                    max=ub if np.isfinite(ub) else None,
                 )
             else:
                 lmfitparams.add(name, value=p.initial, min=p.pmin, max=p.pmax)
@@ -851,7 +872,7 @@ class Calibrate:
                 self.result.params.items(), self._parameters.values(), strict=True
             ):
                 if param.log_scale:
-                    param.optimal = 10**popt.value
+                    param.optimal = np.sign(param.initial) * 10**popt.value
                 else:
                     param.optimal = popt.value
 
@@ -906,19 +927,23 @@ class Calibrate:
         """
         p0 = np.array(
             [
-                p.initial if not p.log_scale else np.log10(p.initial)
+                p.initial if not p.log_scale else np.log10(np.abs(p.initial))
                 for p in self._parameters.values()
             ]
         )
         lb = np.array(
             [
-                p.pmin if (not p.log_scale) or (p.pmin < 0) else np.log10(p.pmin)
+                self._log_scale_bounds(p.pmin, p.pmax, np.sign(p.initial))[0]
+                if p.log_scale
+                else p.pmin
                 for p in self._parameters.values()
             ]
         )
         ub = np.array(
             [
-                p.pmax if (not p.log_scale) or (p.pmax < 0) else np.log10(p.pmax)
+                self._log_scale_bounds(p.pmin, p.pmax, np.sign(p.initial))[1]
+                if p.log_scale
+                else p.pmax
                 for p in self._parameters.values()
             ]
         )
@@ -942,7 +967,7 @@ class Calibrate:
         res = self.residuals(self.result.x)
         for value, param in zip(self.result.x, self._parameters.values(), strict=True):
             if param.log_scale:
-                param.optimal = 10**value
+                param.optimal = np.sign(param.initial) * 10**value
             else:
                 param.optimal = value
 
@@ -958,7 +983,20 @@ class Calibrate:
         float
             RMSE of the weighted residuals.
         """
-        r = self.residuals(np.array([p.optimal for p in self._parameters.values()]))
+        result = getattr(self, "result", None)
+        if result is not None and getattr(result, "x", None) is not None:
+            params_vec = result.x
+        else:
+            # Fall back to reconstructing optimization-space parameters
+            values = []
+            for p in self._parameters.values():
+                if getattr(p, "log_scale", False):
+                    values.append(np.log10(np.abs(p.optimal)))
+                else:
+                    values.append(p.optimal)
+            params_vec = np.array(values, dtype=float)
+
+        r = self.residuals(params_vec)
         return float(np.sqrt(np.mean(r**2)))
 
     @staticmethod
@@ -1155,6 +1193,25 @@ class Calibrate:
         return [model.aq.inhomdict[i] if isinstance(i, str) else i for i in inhoms]
 
     @staticmethod
+    def _log_scale_bounds(pmin: float, pmax: float, sign: float) -> tuple[float, float]:
+        """Convert linear-space bounds to log10(abs) optimizer space.
+
+        For a positive parameter (sign >= 0):
+            pmin > 0  →  lb = log10(pmin),  ub = log10(pmax)
+        For a negative parameter (sign < 0):
+            pmin ≤ pmax ≤ 0, so abs(pmax) ≤ abs(value) ≤ abs(pmin)
+            lb = log10(abs(pmax)),  ub = log10(abs(pmin))
+        Infinite or incompatible bounds are passed through as ±inf.
+        """
+        if sign >= 0:
+            lb = np.log10(pmin) if (np.isfinite(pmin) and pmin > 0) else -np.inf
+            ub = np.log10(pmax) if (np.isfinite(pmax) and pmax > 0) else np.inf
+        else:
+            lb = np.log10(-pmax) if (np.isfinite(pmax) and pmax < 0) else -np.inf
+            ub = np.log10(-pmin) if (np.isfinite(pmin) and pmin < 0) else np.inf
+        return lb, ub
+
+    @staticmethod
     def _get_aquifer_parameter_array(model, aq, name: str) -> np.ndarray:
         """Return reference to the appropriate parameter array in the aquifer object."""
         lookup = {"kaq": aq.kaq, "c": aq.c}
@@ -1189,6 +1246,4 @@ class Calibrate:
                 else [i if isinstance(i, str) else i.name for i in inhoms]
             )
             base += "_" + "_".join(inhom_names)
-        if len(models) == 1 and hasattr(models[0], "_model_type"):
-            base += f"_{models[0]._model_type}"
         return base

@@ -26,7 +26,7 @@ from timflow.transient.invlapnumba import (
 from timflow.transient.plots import PlotTransient
 
 
-class TimModel:
+class Model:
     def __init__(
         self,
         kaq=[1, 1],
@@ -704,7 +704,7 @@ class TimModel:
         return pd.concat(aqs, axis=0)
 
 
-class ModelMaq(TimModel):
+class ModelMaq(Model):
     """Create model specifying a multi-aquifer sequence of aquifer-leakylayer-etc.
 
     Parameters
@@ -804,7 +804,7 @@ class ModelMaq(TimModel):
         self.name = "ModelMaq"
 
 
-class Model3D(TimModel):
+class Model3D(Model):
     """Create a multi-layer model object consisting of many aquifer layers.
 
     The
@@ -923,7 +923,7 @@ class Model3D(TimModel):
         self.name = "Model3D"
 
 
-class ModelXsection(TimModel):
+class ModelXsection(Model):
     r"""Model class for cross-section models.
 
     Parameters
