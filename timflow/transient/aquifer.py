@@ -330,8 +330,11 @@ class Aquifer(AquiferData):
 
     def initialize(self):
         super().initialize()
+        # 2 passes to ensure all data is present prior to creating elements
         for inhom in self.inhomdict.values():
             inhom.initialize()
+        for inhom in self.inhomdict.values():
+            inhom.create_elements()
 
     def is_inside(self, x, y):
         return True
@@ -364,5 +367,8 @@ class SimpleAquifer(Aquifer):
         return f"Simple Aquifer: {self.naq} aquifer(s)"
 
     def initialize(self):
+        # 2 passes to ensure all data is present prior to creating elements
         for inhom in self.inhomdict.values():
             inhom.initialize()
+        for inhom in self.inhomdict.values():
+            inhom.create_elements()

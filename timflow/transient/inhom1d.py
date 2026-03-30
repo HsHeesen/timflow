@@ -155,10 +155,6 @@ class Xsection(AquiferData):
         """
         return (x >= self.x1) and (x < self.x2)
 
-    def initialize(self):
-        super().initialize()
-        self.create_elements()
-
     def create_elements(self):
         """Create linesinks to meet the continuity conditions the at the boundaries."""
         if (self.x1 == -np.inf) and (self.x2 == np.inf):

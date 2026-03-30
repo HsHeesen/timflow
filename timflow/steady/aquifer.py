@@ -200,8 +200,8 @@ class Aquifer(AquiferData):
         self.area = 1e300  # Needed to find smallest inhom
 
     def initialize(self):
-        # cause we are going to call initialize for inhoms
-        AquiferData.initialize(self)
+        super().initialize()
+        # 2 passes to ensure all data is present prior to creating elements
         for inhom in self.inhomdict.values():
             inhom.initialize()
         for inhom in self.inhomdict.values():
@@ -246,5 +246,8 @@ class SimpleAquifer(Aquifer):
         return f"Simple Aquifer: {self.naq} aquifer(s)"
 
     def initialize(self):
+        # 2 passes to ensure all data is present prior to creating elements
         for inhom in self.inhomdict.values():
             inhom.initialize()
+        for inhom in self.inhomdict.values():
+            inhom.create_elements()
