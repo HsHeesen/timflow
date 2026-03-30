@@ -72,7 +72,6 @@ class PolygonInhom(AquiferData):
         self.xmax = max(self.x)
         self.ymin = min(self.y)
         self.ymax = max(self.y)
-        
 
     def __repr__(self):
         return "PolygonInhom: " + str(list(zip(self.x, self.y, strict=False)))
