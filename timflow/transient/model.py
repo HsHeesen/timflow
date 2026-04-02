@@ -567,6 +567,7 @@ class TimModel:
 
         if parallel:
             try:
+                from tqdm import tqdm
                 from tqdm.contrib.concurrent import thread_map
             except ImportError:
                 warn(
@@ -603,7 +604,9 @@ class TimModel:
                 total=nx * ny,
                 desc="headgrid",
                 disable=not show_progress,
+                tqdm_class=tqdm,
             )
+
             for i, j, result in results:
                 h[:, :, j, i] = result
         return h
