@@ -542,7 +542,7 @@ class TimModel:
             show computation progress, by printing dots per row or with tqdm progressbar
             when parallel is True. Default is False.
         parallel : bool, optional
-            if `True`, computes headgrid in parallel using multiprocessing,
+            if `True`, computes headgrid in parallel using multithreading,
             by default `False`
         printrow : bool, optional
 
