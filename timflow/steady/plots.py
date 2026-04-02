@@ -83,7 +83,7 @@ class PlotSteady(PlotBase):
         return_contours : bool, optional
             if True, return list of contour sets for each contoured layer
         parallel : bool, optional
-            if True, compute headgrid in parallel using multiprocessing,
+            if True, compute headgrid in parallel using multiple threads,
             default is False
         **kwargs
             additional keyword arguments passed to ax.contour()
