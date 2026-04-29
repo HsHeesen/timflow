@@ -10,12 +10,14 @@ timflow solutions or understand the numerical accuracy of specific features.
 - :doc:`ttim_neuman_comparison`
 - :doc:`compare_wells_linesink`
 - :doc:`well_near_river_or_wall`
+- :doc:`well_near_leaky_river`
 - :doc:`well_benchmarks`
 - :doc:`line-sink-ditch`
 - :doc:`test_line_elements`
 - :doc:`validation_tidal_wave_with_Bruggeman`
 - :doc:`synthetic_test_calibrate`
 - :doc:`synthetic_calibrate_2aquifers`
+- :doc:`river1d`
 
 .. toctree::
     :maxdepth: 3
@@ -25,9 +27,11 @@ timflow solutions or understand the numerical accuracy of specific features.
     ttim_neuman_comparison
     compare_wells_linesink
     well_near_river_or_wall
+    well_near_leaky_river
     well_benchmarks
     line-sink-ditch
     test_line_elements
     validation_tidal_wave_with_Bruggeman
     synthetic_test_calibrate
     synthetic_calibrate_2aquifers
+    river1d

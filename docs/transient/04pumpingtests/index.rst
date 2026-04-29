@@ -12,6 +12,8 @@ problems such as pumping tests and slug tests. More to come soon.
 
     confined1_oude_korendijk
     confined2_grindley
+    confined3_sioux
+    confined4_nevada
 
 .. toctree::
     :maxdepth: 1
@@ -20,6 +22,7 @@ problems such as pumping tests and slug tests. More to come soon.
 
     leaky1_dalem
     leaky2_hardixveld
+    leaky3_texashill
 
 .. toctree::
     :maxdepth: 1
@@ -27,23 +30,41 @@ problems such as pumping tests and slug tests. More to come soon.
     :caption: Slug tests
 
     slug1_pratt_county
-    slug2_falling_head
+    slug2_multiwell
+    slug3_falling_head
+    slug4_dawsonville
 
+.. toctree::
+    :maxdepth: 1
+    :hidden:
+    :caption: unconfined aquifers
+
+    unconfined1_moench 
 
 Confined Pumping Tests
 ----------------------
 
 1. :doc:`Oude Korendijk <confined1_oude_korendijk>` - One layer confined pumping test with two observation wells
 2. :doc:`Grindley <confined2_grindley>` - One layer confined pumping test with data from both observation well and pumping well.
+3. :doc:`Sioux <confined3_sioux>` - One layer confined pumping test with three observation wells. 
+4. :doc:`Nevada <confined4_nevada>` - Multiple layer confined pumping test with two observation wells. 
 
 Leaky Pumping Tests (Semi-confined)
 -----------------------------------
 
 1. :doc:`Dalem <leaky1_dalem>` - One layer, semi-confined aquifer test with four observation wells.
 2. :doc:`Hardixveld <leaky2_hardixveld>` - Four layers (Aquitard - Aquifer - Aquitard - Aquifer) semi-confined pumping test with data from the pumping well.
+3. :doc:`Texas Hill <leaky3_texashill>` - Two layers, semi-confined aquifer test with three observation wells. 
 
 Slug Tests
 ----------
 
-1. :doc:`Pratt County <slug1_pratt_county>` - One layer partially penetrated slug test with data from the test well.
-2. :doc:`Falling Head <slug2_falling_head>` - One layer partially penetrated slug test with data from the test well.
+1. :doc:`Pratt County <slug1_pratt_county>` - Slug test with data from the partially penetrating test well.
+2. :doc:`Multi well <slug2_multiwell>` - Slug test with data from both fully penetrating test well and observation well.
+3. :doc:`Falling head <slug3_falling_head>` - Slug test in an unconfined aquifer with a partially penetrating well.
+4. :doc:`Dawsonville <slug4_dawsonville>` - Slug test in a confined aquifer with a fully penetrating well.
+
+Unconfined Pumping Tests
+------------------------
+
+1. :doc:`Moench <unconfined1_moench>` - Unconfined pumping test with a partially penetrating well and observation wells at multiple depths.

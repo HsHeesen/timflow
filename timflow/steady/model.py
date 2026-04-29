@@ -53,12 +53,12 @@ class Model:
         'l' leaky layer
     """
 
-    def __init__(self, kaq, c, z, npor, ltype):
+    def __init__(self, kaq, c, z, npor, ltype, model3d=False):
         # All input variables are numpy arrays
         # That should be checked outside this function
         self.elementlist = []
         self.elementdict = {}  # only elements that have a label
-        self.aq = Aquifer(self, kaq, c, z, npor, ltype)
+        self.aq = Aquifer(self, kaq, c, z, npor, ltype, model3d)
         self.modelname = "ml"  # Used for writing out input
         self.name = "Model"
         self.model_type = "steady"  # Model type for plotting and other purposes
@@ -258,7 +258,9 @@ class Model:
         else:
             return rv[layers]
 
-    def headgrid(self, xg, yg, layers=None, printrow=False):
+    def headgrid(
+        self, xg, yg, layers=None, printrow=False, show_progress=False, parallel=False
+    ):
         """Grid of heads.
 
         Parameters
@@ -269,8 +271,16 @@ class Model:
             y values of grid
         layers : integer, list or array, optional
             layers for which grid is returned
-        printrow : boolean, optional
-            prints dot to screen for each row of grid if set to `True`
+        show_progress : bool
+            show computation progress, by printing dots per row or with tqdm progressbar
+            when parallel is True. Default is False.
+        parallel : bool, optional
+            if `True`, computes headgrid in parallel using multi threading,
+            by default `False`
+        printrow : bool, optional
+
+            .. deprecated:: 0.2.0
+                prints dot to screen for each row of grid if set to `True`
 
         Returns
         -------
@@ -280,22 +290,72 @@ class Model:
         --------
         :func:`~timflow.steady.Model.headgrid2`
         """
+        if printrow:
+            warnings.warn(
+                "printrow is deprecated, use show_progress instead",
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
+            show_progress = printrow
+
+        if parallel:
+            try:
+                from tqdm.contrib.concurrent import thread_map
+            except ImportError:
+                warnings.warn(
+                    "Parallel requires 'tqdm'. Install 'timflow[parallel]' or 'tqdm' to"
+                    " enable parallel execution. Falling back to serial execution.",
+                    category=ImportWarning,
+                    stacklevel=2,
+                )
+                parallel = False
+                thread_map = None
+
         nx, ny = len(xg), len(yg)
         if layers is None:
             Nlayers = self.aq.find_aquifer_data(xg[0], yg[0]).naq
         else:
             Nlayers = len(np.atleast_1d(layers))
         h = np.empty((Nlayers, ny, nx))
-        for j in range(ny):
-            if printrow:
-                print(".", end="", flush=True)
-            for i in range(nx):
-                h[:, j, i] = self.head(xg[i], yg[j], layers)
-        if printrow:
-            print("", flush=True)
+        if not parallel:
+            for j in range(ny):
+                if show_progress:
+                    print(".", end="", flush=True)
+                for i in range(nx):
+                    h[:, j, i] = self.head(xg[i], yg[j], layers)
+            if show_progress:
+                print("", flush=True)
+        else:
+
+            def compute(ij):
+                i, j = ij
+                return i, j, self.head(xg[i], yg[j], layers)
+
+            results = thread_map(
+                compute,
+                [(i, j) for j in range(ny) for i in range(nx)],
+                total=nx * ny,
+                desc="headgrid",
+                disable=not show_progress,
+            )
+            for i, j, result in results:
+                h[:, j, i] = result
+
         return h
 
-    def headgrid2(self, x1, x2, nx, y1, y2, ny, layers=None, printrow=False):
+    def headgrid2(
+        self,
+        x1,
+        x2,
+        nx,
+        y1,
+        y2,
+        ny,
+        layers=None,
+        show_progress=False,
+        printrow=False,
+        parallel=False,
+    ):
         """Grid of heads.
 
         Parameters
@@ -306,8 +366,13 @@ class Model:
             y values are generated as linspace(y1, y2, ny)
         layers : integer, list or array, optional
             layers for which grid is returned
+        show_progress : bool
+            show computation progress, by printing dots per row or with tqdm progressbar
+            when parallel is True. Default is False.
         printrow : boolean, optional
-            prints dot to screen for each row of grid if set to `True`
+
+            .. deprecated:: 0.2.0
+                prints dot to screen for each row of grid if set to `True`
 
         Returns
         -------
@@ -318,7 +383,14 @@ class Model:
         :func:`~timflow.steady.Model.headgrid`
         """
         xg, yg = np.linspace(x1, x2, nx), np.linspace(y1, y2, ny)
-        return self.headgrid(xg, yg, layers=layers, printrow=printrow)
+        return self.headgrid(
+            xg,
+            yg,
+            layers=layers,
+            printrow=printrow,
+            show_progress=show_progress,
+            parallel=parallel,
+        )
 
     def headalongline(self, x, y, layers=None):
         """Head along line or curve.
@@ -766,7 +838,8 @@ class Model3D(Model):
         )
         if topboundary == "semi":
             z = np.hstack((z[0] + topthick, z))
-        super().__init__(kaq, c, z, npor, ltype)
+        model3d = True
+        super().__init__(kaq, c, z, npor, ltype, model3d)
         self.aq.kzoverkh = kzoverkh  # add kzoverkh to aquifer object
         self.name = "Model3D"
         if self.aq.ltype[0] == "l":
@@ -774,10 +847,22 @@ class Model3D(Model):
 
 
 class ModelXsection(Model):
-    """Model for cross-section (2D vertical slice) problems.
+    r"""Model for cross-section (2D vertical slice) problems.
 
     A cross-section model represents flow in a vertical plane, typically used
     for analyzing flow patterns in aquifers along a transect.
+
+    Parameters
+    ----------
+    naq : int, optional
+        Number of aquifers in the model, by default 1. Each Xsection added
+        to this model must have the same number of aquifers.
+
+    Notes
+    -----
+    A `ModelXsection` may consist of an arbitrary number of `Xsection3D` or
+    `XsectionMaq` sections. The combined domain of all sections must span from $x =
+    -\infty$ to $x = +\infty$, with no gaps.
     """
 
     def __init__(self, naq=1):
@@ -791,13 +876,37 @@ class ModelXsection(Model):
         self.model_type = "steady"
 
     def check_inhoms(self):
-        """Check if number of aquifers in inhoms matches number of aquifers in model."""
+        """Check inhoms.
+
+        Checks that the number of aquifers in each inhomogeneity matches the number of
+        aquifers in the model, and whether the inhoms span from -inf to inf.
+        """
+        # check aquifers
         naqs = {}
         for inhom in self.aq.inhomlist:
             naqs[inhom.name] = inhom.naq
         check = np.array(list(naqs.values())) == self.aq.naq
         if not check.all():
             raise ValueError(f"Number of aquifers does not match {self.aq.naq}:\n{naqs}")
+        # check -inf to inf
+        xmin = min([inhom.x1 for inhom in self.aq.inhomlist])
+        xmax = max([inhom.x2 for inhom in self.aq.inhomlist])
+        if not (np.isinf(xmin) and np.sign(xmin) < 0):
+            raise ValueError(
+                f"XsectionModel boundary error: left-most boundary must be at x=-np.inf, "
+                f"got x={xmin}. "
+                f"(Model may consist of multiple Xsections, but their combined "
+                f"domain must span from -∞ to +∞)"
+            )
+
+        if not (np.isinf(xmax) and np.sign(xmax) > 0):
+            raise ValueError(
+                f"XsectionModel boundary error: right-most boundary must be at "
+                f"x=+np.inf, got x={xmax}. "
+                f"(Model may consist of multiple Xsections, but their combined "
+                f"domain must span from -∞ to +∞)"
+            )
+
         # # shared boundary check
         # # NOTE: does not deal with nested inhoms
         # xcoords = np.concatenate(

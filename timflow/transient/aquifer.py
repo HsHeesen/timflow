@@ -23,6 +23,7 @@ class AquiferData:
         c,
         Saq,
         Sll,
+        leffaq,
         poraq,
         porll,
         ltype,
@@ -47,6 +48,7 @@ class AquiferData:
         self.Saq = np.atleast_1d(Saq).astype(float)
         self.Sll = np.atleast_1d(Sll).astype(float)
         self.Sll[self.Sll < 1e-20] = 1e-20  # Cannot be zero
+        self.leffaq = np.atleast_1d(leffaq).astype(float)
         self.poraq = np.atleast_1d(poraq).astype(float)
         self.porll = np.atleast_1d(porll).astype(float)
         self.ltype = np.atleast_1d(ltype)
@@ -68,10 +70,9 @@ class AquiferData:
         self.model3d = model3d
         if self.model3d:
             assert self.kzoverkh is not None, "model3d specified without kzoverkh"
-            assert self.topboundary.startswith("con"), (
-                "Error: For Model3D, only 'confined' topboundary is currently "
-                "implemented."
-            )
+            assert self.topboundary.startswith("con") or self.topboundary.startswith(
+                "phr"
+            ), "Error: For Model3D, only 'confined' topboundary is currently implemented."
         # self.D = self.T / self.Saq
         self.area = 1e200  # Smaller than default of ml.aq so that inhom is found
         self.name = name
@@ -79,6 +80,8 @@ class AquiferData:
     def __repr__(self):
         if self.topboundary.startswith("con"):
             topbound = "confined"
+        elif self.topboundary.startswith("phr"):
+            topbound = "phreatic"
         elif self.topboundary.startswith("lea"):
             topbound = "leaky"
         elif self.topboundary.startswith("sem"):
@@ -113,6 +116,8 @@ class AquiferData:
         self.Scoefll = self.Sll * self.Hll
         if (self.topboundary == "con") and self.phreatictop:
             self.Scoefaq[0] = self.Scoefaq[0] / self.Haq[0]
+        elif self.topboundary == "phr":
+            self.Scoefaq[0] = self.Scoefaq[0] / self.Haq[0]
         elif (self.topboundary == "lea") and self.phreatictop:
             self.Scoefll[0] = self.Scoefll[0] / self.Hll[0]
         self.D = self.T / self.Scoefaq
@@ -126,19 +131,25 @@ class AquiferData:
         self.lab = np.zeros((self.naq, self.model.npval), dtype=complex)
         self.eigvec = np.zeros((self.naq, self.naq, self.model.npval), dtype=complex)
         self.coef = np.zeros((self.naq, self.naq, self.model.npval), dtype=complex)
-        b = np.diag(np.ones(self.naq))
+        bmat = np.diag(np.ones(self.naq))
+        self.a = np.zeros((self.model.npval, len(self.c)), dtype=complex)
+        self.b = np.zeros((self.model.npval, len(self.c)), dtype=complex)
         for i in range(self.model.npval):
-            w, v = self.compute_lab_eigvec(self.model.p[i])
+            w, v, a, b = self.compute_lab_eigvec(self.model.p[i])
+            self.a[i] = a
+            self.b[i] = b
             # Eigenvectors are columns of v
             self.eigval[:, i] = w
             self.eigvec[:, :, i] = v
-            self.coef[:, :, i] = np.linalg.solve(v, b).T
+            self.coef[:, :, i] = np.linalg.solve(v, bmat).T
         self.lab = 1.0 / np.sqrt(self.eigval)
         self.lab2 = self.lab.copy()
-        self.lab2.shape = (self.naq, self.model.nint, self.model.npint)
+        self.lab2 = self.lab2.reshape((self.naq, self.model.nint, self.model.npint))
         self.lababs = np.abs(self.lab2[:, :, 0])  # used to check distances
         self.eigvec2 = self.eigvec.copy()
-        self.eigvec2.shape = (self.naq, self.naq, self.model.nint, self.model.npint)
+        self.eigvec2 = self.eigvec2.reshape(
+            (self.naq, self.naq, self.model.nint, self.model.npint)
+        )
 
     def compute_lab_eigvec(self, p, returnA=False, B=None):
         sqrtpSc = np.sqrt(p * self.Scoefll * self.c)
@@ -177,7 +188,7 @@ class AquiferData:
         index = np.argsort(abs(w))[::-1]
         w = w[index]
         v = v[:, index]
-        return w, v
+        return w, v, a, b
 
     def head_to_potential(self, h, layers):
         return h * self.Tcol[layers]
@@ -259,6 +270,7 @@ class Aquifer(AquiferData):
         c,
         Saq,
         Sll,
+        leffaq,
         poraq,
         porll,
         ltype,
@@ -276,6 +288,7 @@ class Aquifer(AquiferData):
             c,
             Saq,
             Sll,
+            leffaq,
             poraq,
             porll,
             ltype,

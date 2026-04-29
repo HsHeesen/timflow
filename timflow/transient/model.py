@@ -36,6 +36,7 @@ class TimModel:
         c=[1e100, 100],
         Saq=[1e-4, 1e-4],
         Sll=[0],
+        leffaq=0,
         poraq=0.3,
         porll=0.3,
         ltype=["a", "a"],
@@ -68,6 +69,7 @@ class TimModel:
             c,
             Saq,
             Sll,
+            leffaq,
             poraq,
             porll,
             ltype,
@@ -416,9 +418,9 @@ class TimModel:
                     )[:, 0]
             else:  # layer = 0, so top layer
                 if aq.naq == 1:  # only one layer
-                    h[1] = self.head(x, y, t, layers=[layer], aq=aq, neglect_steady=True)[
-                        :, 0
-                    ]
+                    h[1:2] = self.head(
+                        x, y, t, layers=[layer], aq=aq, neglect_steady=True
+                    )[:, 0]
                 else:
                     h[1:] = self.head(
                         x, y, t, layers=[layer, layer + 1], aq=aq, neglect_steady=True
@@ -521,7 +523,9 @@ class TimModel:
             qx[:, :, i], qy[:, :, i] = self.disvec(xg[i], yg[i], t, layers)
         return qx, qy
 
-    def headgrid(self, xg, yg, t, layers=None, printrow=False):
+    def headgrid(
+        self, xg, yg, t, layers=None, printrow=False, show_progress=False, parallel=False
+    ):
         """Grid of heads.
 
         Parameters
@@ -534,8 +538,16 @@ class TimModel:
             times for which grid is returned
         layers : integer, list or array, optional
             layers for which grid is returned
-        printrow : boolean, optional
-            prints dot to screen for each row of grid if set to `True`
+        show_progress : bool
+            show computation progress, by printing dots per row or with tqdm progressbar
+            when parallel is True. Default is False.
+        parallel : bool, optional
+            if `True`, computes headgrid in parallel using multithreading,
+            by default `False`
+        printrow : bool, optional
+
+            .. deprecated:: 0.2.0
+                prints dot to screen for each row of grid if set to `True`
 
         Returns
         -------
@@ -545,6 +557,27 @@ class TimModel:
         --------
         :func:`~timflow.transient.Model.headgrid2`
         """
+        if printrow:
+            warn(
+                "printrow is deprecated, use show_progress instead",
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
+            show_progress = printrow
+
+        if parallel:
+            try:
+                from tqdm import tqdm
+                from tqdm.contrib.concurrent import thread_map
+            except ImportError:
+                warn(
+                    "Parallel requires 'tqdm'. Install 'timflow[parallel]' or 'tqdm' to"
+                    " enable parallel execution. Falling back to serial execution.",
+                    category=ImportWarning,
+                    stacklevel=2,
+                )
+                parallel = False
+                thread_map = None
         nx = len(xg)
         ny = len(yg)
         if layers is None:
@@ -553,14 +586,45 @@ class TimModel:
             nlayers = len(np.atleast_1d(layers))
         t = np.atleast_1d(t)
         h = np.empty((nlayers, len(t), ny, nx))
-        for j in range(ny):
-            if printrow:
-                print(".", end="", flush=True)
-            for i in range(nx):
-                h[:, :, j, i] = self.head(xg[i], yg[j], t, layers)
+        if not parallel:
+            for j in range(ny):
+                if show_progress:
+                    print(".", end="", flush=True)
+                for i in range(nx):
+                    h[:, :, j, i] = self.head(xg[i], yg[j], t, layers)
+        else:
+
+            def compute(ij):
+                i, j = ij
+                return i, j, self.head(xg[i], yg[j], t, layers)
+
+            results = thread_map(
+                compute,
+                [(i, j) for j in range(ny) for i in range(nx)],
+                total=nx * ny,
+                desc="headgrid",
+                disable=not show_progress,
+                tqdm_class=tqdm,
+            )
+
+            for i, j, result in results:
+                h[:, :, j, i] = result
         return h
 
-    def headgrid2(self, x1, x2, nx, y1, y2, ny, t, layers=None, printrow=False):
+    def headgrid2(
+        self,
+        x1,
+        x2,
+        nx,
+        y1,
+        y2,
+        ny,
+        t,
+        layers=None,
+        show_progress=False,
+        printrow=False,
+        parallel=False,
+    ):
         """Grid of heads.
 
         Parameters
@@ -573,8 +637,16 @@ class TimModel:
             times for which grid is returned
         layers : integer, list or array, optional
             layers for which grid is returned
+        show_progress : bool
+            show computation progress, by printing dots per row or with tqdm progressbar
+            when parallel is True. Default is False.
+        parallel : bool, optional
+            if `True`, computes headgrid in parallel using multi threading,
+            by default `False`
         printrow : boolean, optional
-            prints dot to screen for each row of grid if set to `True`
+
+            .. deprecated:: 0.2.0
+                prints dot to screen for each row of grid if set to `True`
 
         Returns
         -------
@@ -586,7 +658,15 @@ class TimModel:
         """
         xg = np.linspace(x1, x2, nx)
         yg = np.linspace(y1, y2, ny)
-        return self.headgrid(xg, yg, t, layers, printrow)
+        return self.headgrid(
+            xg,
+            yg,
+            t,
+            layers,
+            show_progress=show_progress,
+            printrow=printrow,
+            parallel=parallel,
+        )
 
     def inverseLapTran(self, pot, t):
         """Returns array of potentials of len(t) t must be ordered and tmin<=t<=tmax."""
@@ -733,12 +813,14 @@ class ModelMaq(TimModel):
         if phreatictop is True and topboundary is 'semi', Sll of top
         leaky layer is phreatic storage coefficient (and not multiplied
         with the layer thickness)
-    topboundary : string, 'conf' or 'semi' (default is 'conf')
-        indicating whether the top is confined ('conf') or
-        semi-confined ('semi')
-    phreatictop : boolean
-        the storage coefficient of the top model layer is treated as
-        phreatic storage (and not multiplied with the aquifer thickness)
+    leffaq : float, array or list
+        loading efficiency of the aquifer
+        only used when topboundary='semi' and hstar varies with time
+    topboundary : string, 'confined', 'phreatic', 'semi', or 'leaky' (default is 'conf')
+        indicating whether the top is confined ('con' is enough), phreatic ('phr' is
+        enough), semi-confined ('sem' is enough), or a leaky layer ('lea' is enough).
+        When phreatic, the storage coefficient (Saq) of the top model layer is
+        treated as phreatic storage (and not multiplied with the aquifer thickness)
     tmin : scalar
         the minimum time for which heads can be computed after any change
         in boundary condition.
@@ -761,10 +843,11 @@ class ModelMaq(TimModel):
         c=[],
         Saq=[0.001],
         Sll=[0],
+        leffaq=0,
         poraq=[0.3],
         porll=[0.3],
         topboundary="conf",
-        phreatictop=False,
+        phreatictop=None,
         tmin=1,
         tmax=10,
         tstart=0,
@@ -772,8 +855,19 @@ class ModelMaq(TimModel):
         steady=None,
     ):
         self.storeinput(inspect.currentframe())
-        kaq, Haq, Hll, c, Saq, Sll, poraq, porll, ltype = param_maq(
-            kaq, z, c, Saq, Sll, poraq, porll, topboundary, phreatictop
+        if phreatictop is None:
+            phreatictop = False
+            if topboundary[:3] == "phr":
+                phreatictop = True
+        else:  # phreatictop is not None
+            warn(
+                "'phreatictop' is deprecated and will be removed in a future version. "
+                "'phreatictop' is set to False unless topboundary='phreatic'.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        kaq, Haq, Hll, c, Saq, Sll, leffaq, poraq, porll, ltype = param_maq(
+            kaq, z, c, Saq, Sll, leffaq, poraq, porll, topboundary, phreatictop
         )
         super().__init__(
             kaq,
@@ -783,6 +877,7 @@ class ModelMaq(TimModel):
             c,
             Saq,
             Sll,
+            leffaq,
             poraq,
             porll,
             ltype,
@@ -826,17 +921,19 @@ class Model3D(TimModel):
         vertical anisotropy ratio vertical k divided by horizontal k
         if float, value is the same for all layers
         length is number of layers
-    topboundary : string, 'conf' or 'semi' (default is 'conf')
-        indicating whether the top is confined ('conf') or
-        semi-confined ('semi').
-        currently only implemented for 'conf'
+    leffaq : float, array or list
+        loading efficiency of the aquifer
+        only used when topboundary='semi' and hstar varies with time
+    topboundary : string, 'confined', 'phreatic', or 'semi' (default is 'conf')
+        indicating whether the top is confined ('con' is enough), phreatic
+        ('phr' is enough) or semi-confined ('sem' is enough).
+        When 'phreatic', the storage coefficient (Saq) of the top model layer is
+        treated as phreatic storage (and not multiplied with the aquifer thickness)
+        When 'semi', the topres and topthick must be specified.
     topres : float
         resistance of top semi-confining layer, only read if topboundary='semi'
     topthick: float
         thickness of top semi-confining layer, only read if topboundary='semi'
-    phreatictop : boolean
-        the storage coefficient of the top aquifer layer is treated as
-        phreatic storage (and not multiplied with the aquifer thickness)
     tmin : scalar
         the minimum time for which heads can be computed after any change
         in boundary condition.
@@ -858,9 +955,10 @@ class Model3D(TimModel):
         z=[4, 3, 2, 1],
         Saq=0.001,
         kzoverkh=0.1,
+        leffaq=0,
         poraq=0.3,
         topboundary="conf",
-        phreatictop=False,
+        phreatictop=None,
         topres=0,
         topthick=0,
         topSll=0,
@@ -873,11 +971,23 @@ class Model3D(TimModel):
     ):
         """Z must have the length of the number of layers + 1."""
         self.storeinput(inspect.currentframe())
-        kaq, Haq, Hll, c, Saq, Sll, poraq, porll, ltype, z = param_3d(
+        if phreatictop is None:
+            phreatictop = False
+            if topboundary[:3] == "phr":
+                phreatictop = True
+        else:  # phreatictop is not None
+            warn(
+                "'phreatictop' is deprecated and will be removed in a future version. "
+                "'phreatictop' is set to False unless topboundary='phreatic'.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        kaq, Haq, Hll, c, Saq, Sll, leffaq, poraq, porll, ltype, z = param_3d(
             kaq,
             z,
             Saq,
             kzoverkh,
+            leffaq,
             poraq,
             phreatictop,
             topboundary,
@@ -894,6 +1004,7 @@ class Model3D(TimModel):
             c,
             Saq,
             Sll,
+            leffaq,
             poraq,
             porll,
             ltype,
@@ -911,7 +1022,7 @@ class Model3D(TimModel):
 
 
 class ModelXsection(TimModel):
-    """Model class for cross-section models.
+    r"""Model class for cross-section models.
 
     Parameters
     ----------
@@ -930,6 +1041,12 @@ class ModelXsection(TimModel):
     steady : timflow.steady.Model
         a timflow.steady model may be included to add a steady-state flow result to
         the computed solution.
+
+    Notes
+    -----
+    A `ModelXsection` may consist of an arbitrary number of `Xsection3D` or
+    `XsectionMaq` sections. The combined domain of all sections must span from $x =
+    -\infty$ to $x = +\infty$, with no gaps.
     """
 
     def __init__(
@@ -965,13 +1082,38 @@ class ModelXsection(TimModel):
         self.model_type = "transient"
 
     def check_inhoms(self):
-        """Check if number of aquifers in inhoms matches number of aquifers in model."""
+        """Check inhoms.
+
+        Checks that the number of aquifers in each inhomogeneity matches the number of
+        aquifers in the model, and whether the inhoms span from -inf to inf.
+
+        """
+        # check aquifers
         naqs = {}
         for inhom in self.aq.inhomdict.values():
             naqs[inhom.name] = inhom.naq
         check = np.array(list(naqs.values())) == self.aq.naq
         if not check.all():
             raise ValueError(f"Number of aquifers does not match {self.aq.naq}:\n{naqs}")
+        # check -inf to inf
+        xmin = min([inhom.x1 for inhom in self.aq.inhomdict.values()])
+        xmax = max([inhom.x2 for inhom in self.aq.inhomdict.values()])
+        if not (np.isinf(xmin) and np.sign(xmin) < 0):
+            raise ValueError(
+                f"XsectionModel boundary error: left-most boundary must be at x=-np.inf, "
+                f"got x={xmin}. "
+                f"(Model may consist of multiple Xsections, but their combined "
+                f"domain must span from -∞ to +∞)"
+            )
+
+        if not (np.isinf(xmax) and np.sign(xmax) > 0):
+            raise ValueError(
+                f"XsectionModel boundary error: right-most boundary must be at "
+                f"x=+np.inf, got x={xmax}. "
+                f"(Model may consist of multiple Xsections, but their combined "
+                f"domain must span from -∞ to +∞)"
+            )
+
         # # shared boundary check
         # # NOTE: does not deal with nested inhoms
         # xcoords = np.concatenate(
