@@ -1096,8 +1096,8 @@ class ModelXsection(TimModel):
         if not check.all():
             raise ValueError(f"Number of aquifers does not match {self.aq.naq}:\n{naqs}")
         # check -inf to inf
-        x1list = np.array([inhom.x1 for inhom in self.aq.inhomdict.values()])
-        x2list = np.array([inhom.x2 for inhom in self.aq.inhomdict.values()])
+        x1list = np.sort([inhom.x1 for inhom in self.aq.inhomdict.values()])
+        x2list = np.sort([inhom.x2 for inhom in self.aq.inhomdict.values()])
         xmin = x1list.min()
         xmax = x2list.max()
         if not (np.isinf(xmin) and np.sign(xmin) < 0):
