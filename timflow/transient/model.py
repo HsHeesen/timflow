@@ -1152,8 +1152,7 @@ class ModelXsection(TimModel):
             raise ValueError(
                 "Elements cannot be located exactly on the boundaries between "
                 "inhomogeneities.\nConsider nudging the location(s) of the following "
-                "element(s) (by e.g. 1e-6):\n- "
-                + "\n- ".join(elems)
+                "element(s) (by e.g. 1e-6):\n- " + "\n- ".join(elems)
             )
 
     def initialize(self):
