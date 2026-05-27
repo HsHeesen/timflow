@@ -9,6 +9,7 @@ Example::
 """
 
 from typing import Literal
+from warnings import warn
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -198,8 +199,8 @@ class Xsection(AquiferData):
                     self.model, self.x1, range(self.naq), label=None, aq=aqin
                 )
         if self.tsandN is not None:
-            assert self.topboundary == "con", Exception(
-                "Infiltration can only be applied to a confined aquifer."
+            assert self.topboundary[:3] == "con" or self.topboundary[:3] == "phr", (
+                Exception("Infiltration can only be applied to a confined aquifer.")
             )
             AreaSinkXsection(self.model, self.x1, self.x2, tsandN=self.tsandN)
         if self.tsandhstar is not None:
@@ -390,12 +391,11 @@ class XsectionMaq(Xsection):
         Porosities of the aquifers.
     porll : array
         Porosities of the leaky layers.
-    topboundary : str
-        Type of top boundary. Can be 'conf' for confined, 'semi' for semi-confined
-        or "leaky" for a leaky top boundary.
-    phreatictop : bool
-        If true, interpret the first specific storage coefficient as specific
-        yield., i.e. it is not multiplied by aquifer thickness.
+    topboundary : string, 'confined', 'phreatic', 'semi', or 'leaky' (default is 'conf')
+        indicating whether the top is confined ('con' is enough), phreatic ('phr' is
+        enough), semi-confined ('sem' is enough), or a leaky layer ('lea' is enough).
+        When phreatic, the storage coefficient (Saq) of the top model layer is
+        treated as phreatic storage (and not multiplied with the aquifer thickness)
     tsandhstar : list of tuples
         list containing time and water level pairs for the hstar boundary condition.
     tsandN : list of tuples
@@ -419,11 +419,22 @@ class XsectionMaq(Xsection):
         poraq=0.3,
         porll=0.3,
         topboundary="conf",
-        phreatictop=False,
+        phreatictop=None,
         tsandhstar=None,
         tsandN=None,
         name=None,
     ):
+        if phreatictop is None:
+            phreatictop = False
+            if topboundary[:3] == "phr":
+                phreatictop = True
+        else:  # phreatictop is not None
+            warn(
+                "'phreatictop' is deprecated and will be removed in a future version. "
+                "'phreatictop' is set to False unless topboundary='phreatic'.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         kaq, Haq, Hll, c, Saq, Sll, leffaq, poraq, porll, ltype = param_maq(
             kaq, z, c, Saq, Sll, leffaq, poraq, porll, topboundary, phreatictop
         )
@@ -477,12 +488,12 @@ class Xsection3D(Xsection):
         Loading efficiency
     poraq : array
         Porosities of the aquifers.
-    topboundary : str
-        Type of top boundary. Can be 'conf' for confined, 'semi' for semi-confined
-        or "leaky" for a leaky top boundary.
-    phreatictop : bool
-        If true, interpret the first specific storage coefficient as specific
-        yield., i.e. it is not multiplied by aquifer thickness.
+    topboundary : string, 'confined', 'phreatic', or 'semi' (default is 'conf')
+        indicating whether the top is confined ('con' is enough), phreatic
+        ('phr' is enough) or semi-confined ('sem' is enough).
+        When 'phreatic', the storage coefficient (Saq) of the top model layer is
+        treated as phreatic storage (and not multiplied with the aquifer thickness)
+        When 'semi', the topres and topthick must be specified.
     topres : scalar
         Resistance of the top boundary. Only used if topboundary is 'leaky'.
     topthick : scalar
@@ -512,7 +523,7 @@ class Xsection3D(Xsection):
         leffaq=0,
         poraq=0.3,
         topboundary="conf",
-        phreatictop=False,
+        phreatictop=None,
         topres=0,
         topthick=0,
         topSll=0,
@@ -521,6 +532,17 @@ class Xsection3D(Xsection):
         tsandN=None,
         name=None,
     ):
+        if phreatictop is None:
+            phreatictop = False
+            if topboundary[:3] == "phr":
+                phreatictop = True
+        else:  # phreatictop is not None
+            warn(
+                "'phreatictop' is deprecated and will be removed in a future version. "
+                "'phreatictop' is set to False unless topboundary='phreatic'.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         kaq, Haq, Hll, c, Saq, Sll, leffaq, poraq, porll, ltype, z = param_3d(
             kaq,
             z,

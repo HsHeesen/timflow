@@ -1,6 +1,6 @@
 <img src="./docs/_static/timflow_logo.jpeg" width="300">
 
-![PyPI - Version](https://img.shields.io/pypi/v/timflow)
+[![PyPI - Version](https://img.shields.io/pypi/v/timflow)](https://pypi.org/project/timflow/)
 [![General](https://github.com/timflow-org/timflow/actions/workflows/ci-general.yml/badge.svg)](https://github.com/timflow-org/timflow/actions/workflows/ci-general.yml)
 [![Steady](https://github.com/timflow-org/timflow/actions/workflows/ci-steady.yml/badge.svg)](https://github.com/timflow-org/timflow/actions/workflows/ci-steady.yml)
 [![Transient](https://github.com/timflow-org/timflow/actions/workflows/ci-transient.yml/badge.svg)](https://github.com/timflow-org/timflow/actions/workflows/ci-transient.yml)
@@ -54,5 +54,5 @@ Some of the papers that you may want to cite when using `timflow` are:
   * M. Bakker. 2013. Semi-analytic modeling of transient multi-layer flow with TTim.
   Hydrogeology Journal, 21: 935-943. [https://doi.org/10.1007/s10040-013-0975-2](https://doi.org/10.1007/s10040-013-0975-2)
   * M .Bakker. 2013. Analytic modeling of transient multi-layer flow. In: Advances in
-  Hydrogeology, edited by P Mishra and K Kuhlman, Springer, Heidelberg, 95-114. Available [here](https://github.com/mbakker7/timflow/blob/master/papers/2013_bakker_ttim_theory.pdf).
+  Hydrogeology, edited by P Mishra and K Kuhlman, Springer, Heidelberg, 95-114. Available [here](https://github.com/timflow-org/timflow/blob/main/papers/2013_bakker_ttim_theory.pdf).
 

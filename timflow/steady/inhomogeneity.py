@@ -442,7 +442,7 @@ class BuildingPit(AquiferData):
             "BuildingPit: layers "
             + str(list(self.layers))
             + ", "
-            + str(list(self.x, self.y))
+            + str(list(zip(self.x.tolist(), self.y.tolist(), strict=False)))
         )
 
     def isinside(self, x, y):
@@ -705,7 +705,9 @@ class BuildingPit3D(BuildingPit):
             layers = [0]
         if z is None:
             z = [1, 0]
-        (kaq, c, npor, ltype) = param_3d(kaq, z, kzoverkh, npor, topboundary, topres)
+        kaq, kzoverkh, c, npor, ltype = param_3d(
+            kaq, z, kzoverkh, npor, topboundary, topres
+        )
         if topboundary == "semi":
             z = np.hstack((z[0] + topthick, z))
         super().__init__(
@@ -721,6 +723,7 @@ class BuildingPit3D(BuildingPit):
             ndeg=ndeg,
             layers=layers,
         )
+        self.kzoverkh = kzoverkh  # add kzoverkh to inhomogeneity object
 
 
 class LeakyBuildingPit(BuildingPit):
@@ -830,7 +833,7 @@ class LeakyBuildingPit(BuildingPit):
             "LeakyBuildingPit: layers "
             + str(list(self.layers))
             + ", "
-            + str(list(self.x, self.y))
+            + str(list(zip(self.x.tolist(), self.y.tolist(), strict=False)))
         )
 
     def create_elements(self):
@@ -1078,7 +1081,9 @@ class LeakyBuildingPit3D(LeakyBuildingPit):
             layers = [0]
         if z is None:
             z = [1, 0]
-        (kaq, c, npor, ltype) = param_3d(kaq, z, kzoverkh, npor, topboundary, topres)
+        kaq, kzoverkh, c, npor, ltype = param_3d(
+            kaq, z, kzoverkh, npor, topboundary, topres
+        )
         if topboundary == "semi":
             z = np.hstack((z[0] + topthick, z))
         super().__init__(
@@ -1095,6 +1100,7 @@ class LeakyBuildingPit3D(LeakyBuildingPit):
             layers=layers,
             res=res,
         )
+        self.kzoverkh = kzoverkh  # add kzoverkh to inhomogeneity object
 
 
 class AreaSinkInhom(Element):
