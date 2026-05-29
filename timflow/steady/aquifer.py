@@ -195,8 +195,8 @@ class Aquifer(AquiferData):
     Extends AquiferData and supports inhomogeneities within a model.
     """
 
-    def __init__(self, model, kaq, c, z, npor, ltype):
-        super().__init__(model, kaq, c, z, npor, ltype)
+    def __init__(self, model, kaq, c, z, npor, ltype, model3d=False):
+        super().__init__(model, kaq, c, z, npor, ltype, model3d=model3d)
         self.inhomdict = {}
         self.area = 1e300  # Needed to find smallest inhom
 
