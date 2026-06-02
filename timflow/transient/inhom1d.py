@@ -199,8 +199,8 @@ class Xsection(AquiferData):
                     self.model, self.x1, range(self.naq), label=None, aq=aqin
                 )
         if self.tsandN is not None:
-            assert self.topboundary[:3] == "con" or self.topboundary[:3] == "phr", (
-                Exception("Infiltration can only be applied to a confined aquifer.")
+            assert self.topboundary == "con" or self.topboundary == "phr", Exception(
+                "Infiltration can only be applied to a confined aquifer."
             )
             AreaSinkXsection(self.model, self.x1, self.x2, tsandN=self.tsandN)
         if self.tsandhstar is not None:
@@ -268,7 +268,7 @@ class Xsection(AquiferData):
         r0 = x1
 
         if labels or params:
-            lli = 1 if self.topboundary == "con" else 0
+            lli = 1 if self.topboundary in ["con", "phr"] else 0
             aqi = 0
         else:
             lli = None
