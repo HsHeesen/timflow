@@ -16,7 +16,11 @@ from timflow.transient.linedoublet import (
     LeakyWall,
     LeakyWallString,
 )
-from timflow.transient.linedoublet1d import LeakyLineDoublet1D, LeakyWall1D
+from timflow.transient.linedoublet1d import (
+    ImpermeableWall1D,
+    LeakyLineDoublet1D,
+    LeakyWall1D,
+)
 from timflow.transient.linesink import (
     DitchString,
     HeadLineSink,  # deprecated
