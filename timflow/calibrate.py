@@ -1489,6 +1489,7 @@ class Calibrate:
         )
         axes = np.atleast_1d(ax_array)
 
+        i = 0
         for ax, (name, obs) in zip(axes, all_items, strict=True):
             dt = obs._time_shift if obs.time_shift is not None else 0.0
             t_plot = obs.t - dt  # shared time axis for observed and modeled
@@ -1541,13 +1542,14 @@ class Calibrate:
             nse_str = f"NSE={nse:.2f}" if np.isfinite(nse) else "NSE=n/a"
             model_label = f"{model_kw.get('label', 'model')} ({nse_str})"
 
+            model_kw["color"] = f"C{i}"  # cycle through colors for each subplot
             ax.plot(t_plot[mask], h_obs_plot[mask], label=obs_label, **obs_kw)
             ax.plot(t_plot[mask], h_mod[mask], **{**model_kw, "label": model_label})
             ax.set_ylabel("head")
             ax.grid(True)
             ax.legend(loc=(0, 1), frameon=False, ncol=2)
             ax.set_xlim(left=t_plot[mask][0], right=t_plot[mask][-1])
-
+            i += 1
         axes[-1].set_xlabel("time")
         fig.tight_layout()
         return fig, axes
