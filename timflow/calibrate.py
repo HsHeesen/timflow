@@ -4,8 +4,10 @@ Supports independent and joint calibration where models share parameters.
 
 Example::
 
+    import timflow as tf
+
     # setup joint calibration
-    cal = Calibrate(transient_model=ml_t, steady_model=ml_s)
+    cal = tf.Calibrate(transient_model=ml_t, steady_model=ml_s)
 
     # add observations, either a steady head observation or a time series of heads
     cal.add_head_time_series(name='obs1', x=0, y=0, layer=0, t=t, h=h)
@@ -262,6 +264,9 @@ class HeadSeriesInWell:
         Observation times.
     h : np.ndarray
         Observed heads.
+    weights : float, np.ndarray, optional
+        Per time-series (float) or per-timestep weights (array). Defaults to uniform
+        weight of 1.0 if ``None``.
     constant : float or (float, float, float), optional
         If not ``None``, a constant offset is added as a calibration
         parameter. Supply a float for the initial value (unbounded), or a
@@ -275,6 +280,7 @@ class HeadSeriesInWell:
     element: TransientElement
     t: np.ndarray
     h: np.ndarray
+    weights: Optional[np.ndarray] = None
     model_key: str = field(default="transient", init=False)  # 'transient'
     constant: float | tuple[float, float, float] | None = (
         None  # constant parameter and optional bounds
@@ -292,8 +298,6 @@ class Calibrate:
 
     Supports independent and joint calibration where both model types share
     parameters (e.g., hydraulic conductivity, aquitard resistance).
-
-
 
     Parameters
     ----------
