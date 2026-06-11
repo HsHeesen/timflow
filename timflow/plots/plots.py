@@ -88,8 +88,10 @@ class PlotBase:
         fmt=None,
         units=None,
         hstar=None,
+        boundaries=True,
         horizontal_axis: Literal["x", "y", "s"] = "s",
         sep: Literal[", ", "\n"] = ", ",
+        ha: str = "center",
         **kwargs,
     ):
         r"""Plot cross-section of model.
@@ -115,7 +117,8 @@ class PlotBase:
         fmt : str, optional
             format string for parameter values, e.g. '.2f' for 2 decimals
         units : dict, optional
-            dictionary with units for parameters, e.g. {'k': 'm/d', 'c': 'd'}
+            dictionary with units keyed by timflow parameter names,
+            e.g. {'kaq': 'm/d', 'c': 'd', 'Saq': 'm$^{-1}$', 'Sll': 'm$^{-1}$'}
         horizontal_axis : str
             's' for distance along cross-section on x-axis (default)
             'x' for using x-coordinates on x-axis
@@ -124,8 +127,13 @@ class PlotBase:
             override hstar value for plotting water level in transient
             1D inhomogeneities that use hstar, useful for plotting pretty
             cross-sections when reference level is not equal to 0.
+        boundaries : bool, optional
+            whether to plot aquifer boundaries for cross-section models,
+            default is True
         sep : str
             Separator between parameters, either ", " or "\n"
+        ha : str, optional
+            Horizontal alignment for parameter labels. Defaults to "center".
         **kwargs
             passed on to all ax.plot calls
 
@@ -151,7 +159,9 @@ class PlotBase:
                 fmt=fmt,
                 units=units,
                 hstar=hstar,
+                boundaries=boundaries,
                 sep=sep,
+                ha=ha,
             )
 
         # Standard cross-section for multi-layer models
@@ -166,7 +176,7 @@ class PlotBase:
 
         # Plot layers
         self._xection_plot_layers(
-            r0, r, labels, params, fmt, units, lli, aqi, ax, sep=sep, **kwargs
+            r0, r, labels, params, fmt, units, lli, aqi, ax, sep=sep, ha=ha, **kwargs
         )
 
         # Plot aquifer-aquifer boundaries
@@ -270,7 +280,9 @@ class PlotBase:
         fmt,
         units=None,
         hstar=None,
+        boundaries=True,
         sep: Literal[", ", "\n"] = ", ",
+        ha: str = "center",
     ):
         """Handle cross-section plotting for SimpleAquifer models."""
         # Default implementation - can be overridden
@@ -312,6 +324,7 @@ class PlotBase:
             fmt=fmt,
             units=units,
             sep=sep,
+            ha=ha,
         )
         ax.set_xlim(x1, x2)
         ax.set_ylabel("elevation")
@@ -324,7 +337,8 @@ class PlotBase:
             if isinstance(e, HstarXsection):
                 e.plot(ax=ax, hstar=hstar)
             else:
-                e.plot(ax=ax)
+                if not e.inhomelement or boundaries:
+                    e.plot(ax=ax)
 
         return ax
 
@@ -339,8 +353,9 @@ class PlotBase:
         fmt,
         units,
         sep: Literal[", ", "\n"] = ", ",
+        ha: str = "center",
     ):
-        """Plot inhomogeneities for SimpleAquifer models.
+        r"""Plot inhomogeneities for SimpleAquifer models.
 
         Parameters
         ----------
@@ -357,35 +372,26 @@ class PlotBase:
         fmt : str
             Format string for parameter values
         units : dict or None
-            Dictionary of units for parameters (unused in transient, kept for
-            compatibility)
+            Dictionary of units keyed by timflow parameter names
+            e.g. {'kaq': 'm/d', 'c': 'd', 'Saq': 'm$^{-1}$', 'Sll': 'm$^{-1}$'}.
+        sep : str, optional
+            Separator between parameters, either ", " or "\n"
+        ha : str, optional
+            Horizontal alignment for parameter labels. Defaults to "center".
         """
-        if self._ml.model_type == "steady":
-            for inhom in self._ml.aq.inhomlist:
-                inhom.plot(
-                    ax=ax,
-                    labels=labels,
-                    params=params,
-                    names=names,
-                    x1=x1,
-                    x2=x2,
-                    fmt=fmt,
-                    units=units,
-                    sep=sep,
-                )
-        elif self._ml.model_type == "transient":
-            for inhom in self._ml.aq.inhomdict.values():
-                inhom.plot(
-                    ax=ax,
-                    labels=labels,
-                    params=params,
-                    names=names,
-                    x1=x1,
-                    x2=x2,
-                    fmt=fmt,
-                    units=units,
-                    sep=sep,
-                )
+        for inhom in self._ml.aq.inhomdict.values():
+            inhom.plot(
+                ax=ax,
+                labels=labels,
+                params=params,
+                names=names,
+                x1=x1,
+                x2=x2,
+                fmt=fmt,
+                units=units,
+                sep=sep,
+                ha=ha,
+            )
 
     def _get_xsection_line_params(self, xy, ax, horizontal_axis):
         """Get parameters for cross-section line.
@@ -456,6 +462,7 @@ class PlotBase:
         aqi,
         ax,
         sep: Literal[", ", "\n"] = ", ",
+        ha: str = "center",
         **kwargs,
     ):
         r"""Plot individual layers in the cross-section.
@@ -473,7 +480,8 @@ class PlotBase:
         fmt : str
             Format string for parameter values
         units : dict or None
-            Dictionary of units for parameters
+            Dictionary of units keyed by timflow parameter names
+            e.g. {'kaq': 'm/d', 'c': 'd', 'Saq': 'm$^{-1}$', 'Sll': 'm$^{-1}$'}
         lli : int or None
             Current leaky layer index
         aqi : int or None
@@ -482,6 +490,8 @@ class PlotBase:
             Axes to plot on
         sep : str
             Separator between parameters, either ", " or "\n"
+        ha : str, optional
+            Horizontal alignment for parameter labels. Defaults to "center".
         **kwargs
             passed on to all ax.plot calls
         """
@@ -504,7 +514,7 @@ class PlotBase:
                     )
                 if params:
                     self._xsection_leaky_layer_params(
-                        ax, r0, r, labels, fmt, units, lli, i, sep=sep
+                        ax, r0, r, labels, fmt, units, lli, i, sep=sep, ha=ha
                     )
                 if labels or params:
                     lli += 1
@@ -522,7 +532,7 @@ class PlotBase:
                     )
                 if params:
                     self._xsection_aquifer_params(
-                        ax, r0, r, labels, fmt, units, aqi, i, sep=sep
+                        ax, r0, r, labels, fmt, units, aqi, i, sep=sep, ha=ha
                     )
                 if labels or params:
                     aqi += 1
@@ -538,6 +548,7 @@ class PlotBase:
         lli,
         layer_idx,
         sep: Literal[", ", "\n"] = ", ",
+        ha: str = "center",
     ):
         r"""Add parameter text for leaky layers.
 
@@ -554,13 +565,16 @@ class PlotBase:
         fmt : str
             Format string for parameter values
         units : dict or None
-            Dictionary of units for parameters
+            Dictionary of units keyed by timflow parameter names
+            e.g. {'kaq': 'm/d', 'c': 'd', 'Saq': 'm$^{-1}$', 'Sll': 'm$^{-1}$'}
         lli : int
             Leaky layer index
         layer_idx : int
             Layer index in the model
         sep : str
             Separator between parameters, either ", " or "\n"
+        ha : str, optional
+            Horizontal alignment for parameter labels. Defaults to "center".
         """
         if self._ml.model_type == "steady":
             # Steady state: only resistance c
@@ -574,17 +588,20 @@ class PlotBase:
             ssfmt = ".2e"
             cstr = f"$c$ = {self._ml.aq.c[lli]:{fmt}}"
             sstr = f"$S_s$ = {self._ml.aq.Sll[lli]:{ssfmt}}"
-            if sep == "\n":
-                nspaces = max(len(sstr) - len(cstr), 1)
-                paramtxt = cstr + " " * nspaces + sep + sstr
+            if units is not None:
+                c_unitstr = f" {units['c']}" if "c" in units else ""
+                # Prefer Sll unit; fall back to Saq for compatibility.
+                ss_unitstr = f" {units['Sll']}" if "Sll" in units else ""
             else:
-                paramtxt = cstr + sep + sstr
+                c_unitstr = ""
+                ss_unitstr = ""
+            paramtxt = cstr + c_unitstr + sep + sstr + ss_unitstr
 
         ax.text(
             r0 + 0.75 * r if labels else r0 + 0.5 * r,
             np.mean(self._ml.aq.z[layer_idx : layer_idx + 2]),
             paramtxt,
-            ha="center",
+            ha=ha,
             va="center",
         )
 
@@ -599,6 +616,7 @@ class PlotBase:
         aqi,
         layer_idx,
         sep: Literal[", ", "\n"] = ", ",
+        ha: str = "center",
     ):
         r"""Add parameter text for aquifers.
 
@@ -615,20 +633,25 @@ class PlotBase:
         fmt : str
             Format string for parameter values
         units : dict or None
-            Dictionary of units for parameters
+            Dictionary of units keyed by timflow parameter names
+            e.g.{'kaq': 'm/d', 'c': 'd', 'Saq': 'm$^{-1}$', 'Sll': 'm$^{-1}$'}
         aqi : int
             Aquifer index
         layer_idx : int
             Layer index in the model
         sep : str
             Separator between parameters, either ", " or "\n"
+        ha : str, optional
+            Horizontal alignment for parameter labels. Defaults to "center".
         """
         # Steady state: only hydraulic conductivity
         if units is not None:
-            unitstr = f" {units['k']}" if "k" in units else ""
+            kh_unitstr = f" {units['kaq']}" if "kaq" in units else ""
+            ss_unitstr = f" {units['Saq']}" if "Saq" in units else ""
         else:
-            unitstr = ""
-        paramtxt = f"$k_h$ = {self._ml.aq.kaq[aqi]:{fmt}}" + unitstr
+            kh_unitstr = ""
+            ss_unitstr = ""
+        paramtxt = f"$k_h$ = {self._ml.aq.kaq[aqi]:{fmt}}" + kh_unitstr
 
         # Model3D adds vertical anisotropy
         if self._ml.name == "Model3D":
@@ -642,13 +665,13 @@ class PlotBase:
                 # Top phreatic aquifer uses S instead of Ss
                 paramtxt += f"{sep}$S$ = {self._ml.aq.Saq[aqi]:{fmt}}"
             else:
-                paramtxt += f"{sep}$S_s$ = {self._ml.aq.Saq[aqi]:{ssfmt}}"
+                paramtxt += f"{sep}$S_s$ = {self._ml.aq.Saq[aqi]:{ssfmt}}" + ss_unitstr
 
         ax.text(
             r0 + 0.75 * r if labels else r0 + 0.5 * r,
             np.mean(self._ml.aq.z[layer_idx : layer_idx + 2]),
             paramtxt,
-            ha="center",
+            ha=ha,
             va="center",
         )
 

@@ -31,7 +31,7 @@ extensions = [
 ]
 
 # templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", "_templates", "Thumbs.db", ".DS_Store"]
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
@@ -79,8 +79,9 @@ autoapi_options = [
     "inherited-members",
     "show-inheritance",
 ]
-autoapi_own_page_level = "method"
+autoapi_own_page_level = "class"
 autoapi_template_dir = "_templates/autoapi"
+suppress_warnings = ["autoapi"]
 
 # -- Numpydoc settings ----------------------------------------------------------------
 
@@ -99,31 +100,21 @@ intersphinx_mapping = {
 
 # -- myst_nb options ------------------------------------------------------------------
 
+nb_execution_mode = "cache"
+
 nb_execution_allow_errors = True  # Allow errors in notebooks, to see the error online
-nb_execution_mode = "auto"
-nb_merge_streams = True
+nb_execution_show_tb = True
 nb_execution_excludepatterns = [
     "besselnumba_timing.ipynb",
     "vertical_anisotropy.ipynb",
+    "transient/04pumpingtests/*.ipynb",
 ]
 
 myst_enable_extensions = ["dollarmath", "amsmath", "html_image"]
 myst_dmath_double_inline = True
-nb_render_markdown_format = "myst"  # Enable MyST markdown parsing in notebooks
-nb_render_text_lexer = "myst-ansi"  # Better rendering of ANSI output
-# nb_mime_priority_overrides = {
-#     "html": (
-#         "application/vnd.jupyter.widget-view+json",
-#         "application/javascript",
-#         "text/html",
-#         "image/svg+xml",
-#         "image/png",
-#         "image/jpeg",
-#         "text/markdown",
-#         "text/latex",
-#         "text/plain",
-#     )
-# }
+
+nb_merge_streams = True
+
 
 # -- bibtex options ------------------------------------------------------------------
 

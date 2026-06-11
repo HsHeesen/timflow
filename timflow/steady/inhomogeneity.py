@@ -42,7 +42,9 @@ __all__ = [
 class PolygonInhom(AquiferData):
     tiny = 1e-8
 
-    def __init__(self, model, xy, kaq, c, z, npor, ltype, hstar, N, order, ndeg):
+    def __init__(
+        self, model, xy, kaq, c, z, npor, ltype, hstar, N, order, ndeg, name=None
+    ):
         # All input variables except model should be numpy arrays
         # That should be checked outside this function):
         AquiferData.__init__(self, model, kaq, c, z, npor, ltype)
@@ -50,6 +52,7 @@ class PolygonInhom(AquiferData):
         self.ndeg = ndeg
         self.hstar = hstar
         self.N = N
+        self.name = name
         self.inhom_number = self.model.aq.add_inhom(self)
         self.z1, self.z2 = compute_z1z2(xy)
         self.Nsides = len(self.z1)
@@ -186,6 +189,8 @@ class PolygonInhomMaq(PolygonInhom):
     ndeg : int
         number of points used between two segments to numerically
         integrate normal discharge
+    name : string, optional
+        name of inhomogeneity
     """
 
     tiny = 1e-8
@@ -203,6 +208,7 @@ class PolygonInhomMaq(PolygonInhom):
         N=None,
         order=3,
         ndeg=3,
+        name=None,
     ):
         if c is None:
             c = []
@@ -220,7 +226,19 @@ class PolygonInhomMaq(PolygonInhom):
             ltype,
         ) = param_maq(kaq, z, c, npor, topboundary)
         PolygonInhom.__init__(
-            self, model, xy, kaq, c, z, npor, ltype, hstar, N, order, ndeg
+            self,
+            model,
+            xy,
+            kaq,
+            c,
+            z,
+            npor,
+            ltype,
+            hstar,
+            N,
+            order,
+            ndeg,
+            name=name,
         )
 
 

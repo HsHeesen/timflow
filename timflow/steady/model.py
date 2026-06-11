@@ -59,7 +59,7 @@ class Model:
         # That should be checked outside this function
         self.elementlist = []
         self.elementdict = {}  # only elements that have a label
-        self.aq = Aquifer(self, kaq, c, z, npor, ltype, model3d)
+        self.aq = Aquifer(self, kaq, c, z, npor, ltype, model3d=model3d)
         self.modelname = "ml"  # Used for writing out input
         self.name = "Model"
         self.model_type = "steady"  # Model type for plotting and other purposes
@@ -826,11 +826,16 @@ class Model:
         pandas.DataFrame
             dataframe with summary of aquifer(s) parameters
         """
+        if type(self) is Model:
+            raise NotImplementedError(
+                "aquifer_summary is not supported for the base Model class; "
+                "use ModelMaq, Model3D instead."
+            )
         aqs = {}
         if not isinstance(self.aq, SimpleAquifer):
             aqs["background"] = self.aq.summary()
-        for i, iaq in enumerate(self.aq.inhomlist):
-            aqs[f"inhom{i}"] = iaq.summary()
+        for iaq in self.aq.inhomdict.values():
+            aqs[iaq.name] = iaq.summary()
         if aqs:
             return pd.concat(aqs, axis=0)
 
@@ -1050,14 +1055,14 @@ class ModelXsection(Model):
         """
         # check aquifers
         naqs = {}
-        for inhom in self.aq.inhomlist:
+        for inhom in self.aq.inhomdict.values():
             naqs[inhom.name] = inhom.naq
         check = np.array(list(naqs.values())) == self.aq.naq
         if not check.all():
             raise ValueError(f"Number of aquifers does not match {self.aq.naq}:\n{naqs}")
         # check -inf to inf
-        x1list = np.array([inhom.x1 for inhom in self.aq.inhomlist])
-        x2list = np.array([inhom.x2 for inhom in self.aq.inhomlist])
+        x1list = np.array([inhom.x1 for inhom in self.aq.inhomdict.values()])
+        x2list = np.array([inhom.x2 for inhom in self.aq.inhomdict.values()])
         xmin = x1list.min()
         xmax = x2list.max()
         if not (np.isinf(xmin) and np.sign(xmin) < 0):
